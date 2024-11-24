@@ -6,3 +6,4 @@ import PodcastResearchAssistant from '@/components/PodcastResearchAssistant'
 export default function Page() {
   return <PodcastResearchAssistant />
 }
+2. Create
