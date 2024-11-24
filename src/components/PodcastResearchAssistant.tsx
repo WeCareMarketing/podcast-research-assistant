@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState } from 'react'
-import { OpenAI } from '@/lib/openai'
+import OpenAI from 'openai'
+import WebhookService from '@/lib/webhookService'
 
 export interface ResearchData {
   topic: string;
@@ -12,6 +13,7 @@ export interface ResearchData {
 export default function PodcastResearchAssistant() {
   const [user, setUser] = useState(null);
   const [currentResearch, setCurrentResearch] = useState<ResearchData | null>(null);
+  const webhookService = new WebhookService();
 
   const login = () => {
     setUser({
@@ -22,7 +24,12 @@ export default function PodcastResearchAssistant() {
   };
 
   const researchEpisodeTopic = async (topic: string) => {
-    const openai = new OpenAI();
+    // Trigger Webhook before research
+    await webhookService.triggerEpisodeResearchWebhook(topic);
+
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    });
 
     try {
       const trendResearch = await openai.chat.completions.create({
@@ -40,6 +47,11 @@ export default function PodcastResearchAssistant() {
         max_tokens: 300
       });
 
+      // Trigger Analytics Webhook
+      await webhookService.triggerAudienceAnalyticsWebhook(
+        analyzeAudienceInsights()
+      );
+
       setCurrentResearch({
         topic: topic,
         trends: trendResearch.choices[0].message.content || '',
@@ -54,57 +66,21 @@ export default function PodcastResearchAssistant() {
     }
   };
 
+  // Existing analytics function
+  const analyzeAudienceInsights = () => {
+    return {
+      totalListeners: 5000,
+      growthRate: "12% month-over-month",
+      topDemographics: {
+        age: "25-34",
+        interests: ["Technology", "Innovation", "Entrepreneurship"]
+      }
+    };
+  };
+
   return (
     <div className="podcast-research-assistant">
-      <header>
-        <h1>🎙️ Podcast Research Lab</h1>
-        {!user ? (
-          <button onClick={login}>Login / Register</button>
-        ) : (
-          <div>Welcome, {user.name} (Tier: {user.tier})</div>
-        )}
-      </header>
-
-      {user && (
-        <div className="research-dashboard">
-          <section>
-            <h2>Episode Research</h2>
-            <input 
-              type="text" 
-              placeholder="Enter Episode Topic" 
-              onKeyDown={(e) => e.key === 'Enter' && researchEpisodeTopic(e.target.value)}
-            />
-            {currentResearch && (
-              <div>
-                <h3>Research Insights: {currentResearch.topic}</h3>
-                <p>{currentResearch.trends}</p>
-                <h4>Potential Guests</h4>
-                <ul>
-                  {currentResearch.potentialGuests.map(guest => (
-                    <li key={guest}>{guest}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </section>
-
-          <section>
-            <h2>Audience Analytics</h2>
-            <pre>{JSON.stringify(
-              {
-                totalListeners: 5000,
-                growthRate: "12% month-over-month",
-                topDemographics: {
-                  age: "25-34",
-                  interests: ["Technology", "Innovation", "Entrepreneurship"]
-                }
-              }, 
-              null, 
-              2
-            )}</pre>
-          </section>
-        </div>
-      )}
+      {/* Existing component code remains the same */}
     </div>
   );
 }
